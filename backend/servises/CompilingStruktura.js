@@ -1,6 +1,7 @@
 
 const GetToBaseClass = require('./GetToBaseClass')
 const MutationClass = require('./MutationClass')
+const XLSX = require('xlsx')
 
 class CompilingStruktura {
     constructor(value) {
@@ -34,8 +35,33 @@ class CompilingStruktura {
         // console.log(this.data)
         const instance = new MutationClass(this.value, this.data)
         const mutationData = instance.init()
+        this.exportToExcel(this.data[8].val);
         return { data: this.data, model: this.model }
     }
+
+
+    exportToExcel(data) {
+        // Создаем новую рабочую книгу
+        const wb = XLSX.utils.book_new();
+
+        // Преобразуем массив в формат, подходящий для Excel
+        const worksheetData = data.map(e => ({
+            State: e.state,
+            Cube: e.cube,
+            Value: e.value,
+            Dates: new Date(e.dates)
+        }));
+
+        // Создаем рабочий лист
+        const ws = XLSX.utils.json_to_sheet(worksheetData);
+
+        // Добавляем лист в книгу
+        XLSX.utils.book_append_sheet(wb, ws, 'Данные');
+
+        // Генерируем файл и скачиваем его
+        XLSX.writeFile(wb, 'data.xlsx');
+    }
+
 
     params() {
         this.arrayColumns = ['last_valid_time', 'speed', 'sats', 'engineOn']

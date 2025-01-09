@@ -10,6 +10,9 @@ class MutationClass {
             'normal': inputsData.normal,
             'high': inputsData.high
         }
+        this.UTCSecBAR = 0.00024306
+        this.highPorog = 9.3
+        this.lowPorog = 8.5
         this.timeDiff = Number(inputsData.timeDiff) //время определеия парковки
         this.data = data //массив с данными
         this.defaultStateCube = this.diapazonsState['normal']//стартовый диапазон для первого сообщения
@@ -21,6 +24,10 @@ class MutationClass {
         this.flagMutation = false
         this.timeMsg = 0;
         this.lastTimeMsg = null;
+        this.flagLowpressure = false
+        this.indexTyres = {}
+        this.swap = [8.6, 9.2]
+        this.flagstartReys = false
     }
 
     init() {
@@ -34,9 +41,10 @@ class MutationClass {
     }
 
     iteration() {
+
         this.data[0].val.forEach((tyres, index) => {
             this.installStateMsg(tyres)
-            this.installStateTravel(tyres)
+            this.installStateTravel(tyres, index)
             if (index === 0) { this.mutationFirstMsg(index) }
             else this.mutation(index)
         })
@@ -62,35 +70,58 @@ class MutationClass {
     mutation(index) {
         const vector = this.stor[`${this.prevStateCube}${this.stateCube}`]
         this.celevoy = vector.celevoy
-        this.data.forEach(tyres => {
+        this.data.forEach((tyres, indx) => {
             this.step = this.randomStep(vector.arrayStep)
             const ind = index - 1
-            this.mutationValue = this.getMutationValue(tyres.val[ind].value, this.celevoy, this.step)
+            this.mutationValue = this.getMutationValue(tyres.val[ind], tyres.val[index].dates, this.celevoy, this.step, indx)
             tyres.val[index].value = this.mutationValue
             tyres.val[index].state = this.stateTravel === 1 ? 'рейс' : 'парковка'
-        })
+            tyres.val[index].cube = this.stateCube
 
+        })
     }
 
-    getMutationValue(value, celevoy, step) {
-
+    getMutationValue(tyres, timevalue, celevoy, step, indx) {
+        const value = tyres.value
         let mutationValue;
         if (this.stateTravel === 1) {
-            if (this.flagMutation) {
-                if (value < celevoy) {
-                    mutationValue = (value + step) > celevoy ? value : value + step;
-                } else if (value > celevoy) {
-                    mutationValue = (value - step) < celevoy ? value : value - step;
+            if (tyres.state === 'парковка') {
+                mutationValue = value <= this.lowPorog ? (Math.random() * (this.swap[1] - this.swap[0]) + this.swap[0]) :
+                    value
+            }
+            else {
+                if (this.flagMutation) {
+                    if (value < celevoy) {
+                        mutationValue = (value + step) > celevoy ? value : value + step;
+                    } else if (value > celevoy) {
+                        mutationValue = (value - step) < celevoy ? value : value - step;
+                    } else {
+                        mutationValue = value;
+                    }
                 } else {
+                    this.randomCube()
                     mutationValue = value;
                 }
-            } else {
-                mutationValue = value;
             }
+
         } else {
-            mutationValue = value;
+            mutationValue = this.lowDinalicalPressureParking(value, timevalue, tyres, indx)
         }
         return parseFloat(mutationValue.toFixed(1))
+    }
+
+    lowDinalicalPressureParking(value, timevalue, tyres, indx) {
+        const timenow = Math.floor(new Date(timevalue).getTime() / 1000)
+        const timeold = Math.floor(new Date(tyres.dates).getTime() / 1000)
+        const step = this.UTCSecBAR * (timenow - timeold)
+        let newValue;
+        if (this.indexTyres[indx] && value > 9) {
+            newValue = value - step < 9 ? 9 : value - step
+        }
+        else {
+            newValue = value
+        }
+        return newValue
     }
 
 
@@ -102,7 +133,7 @@ class MutationClass {
         })
     }
 
-    installStateTravel(msg) {
+    installStateTravel(msg, index) {
         const currentTime = Math.floor(new Date(msg.dates).getTime() / 1000);
         if (msg.stop === 0) {
             if (!this.lastParkingTime) {
@@ -113,8 +144,16 @@ class MutationClass {
             }
             if (this.timeParking >= this.timeDiff) {
                 this.stateTravel = 0;
+                this.flagLowpressure = false
                 this.timeParking = 0;
                 this.lastParkingTime = null
+                if (!this.flagLowpressure) {
+                    this.data.forEach((it, indexTyres) => {
+                        it.val[index - 1].value >= 9.3 ? this.indexTyres[indexTyres] = true : this.indexTyres[indexTyres] = false
+                    })
+                    this.flagLowpressure = true
+                }
+
             }
         } else {
             if (this.stateTravel === 0) {
@@ -137,13 +176,10 @@ class MutationClass {
     randomCube() {
         if (this.stateCube) {
             this.prevStateCube = this.stateCube
-
         }
-        //   console.log('бросаем кубик')
         const keys = Object.keys(this.diapazonsState);
         const randomIndex = Math.floor(Math.random() * keys.length);
         this.stateCube = keys[randomIndex]
-        // console.log(this.stateCube)
     }
 
     randomStep(array) {

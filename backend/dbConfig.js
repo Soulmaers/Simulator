@@ -3,10 +3,10 @@ require('dotenv').config();
 
 
 const config = {
-    user: process.env.DB_USER,
-    password: process.env.DB_PASS,
-    server: process.env.DB_HOST,
-    database: process.env.DB_NAME,
+    user: 'sa',
+    password: 'Asdf2022',
+    server: 'localhost',
+    database: 'CursorMSSQL2024',
     pool: {
         max: 100, // Максимальное количество соединений в пуле
         min: 0,  // Минимальное количество соединений в пуле
@@ -16,7 +16,7 @@ const config = {
         trustServerCertificate: true // если используете самоподписанный сертификат SSL
     }
 };
-
+console.log(config)
 const pool = new sql.ConnectionPool(config);
 const connection = pool.connect();
 
